@@ -1,4 +1,5 @@
 #include<bits/stdc++.h>
+
 using namespace std;
 
 class NodeL{
@@ -13,6 +14,24 @@ class NodeL{
     NodeL(int data1){
         data = data1;
         next = nullptr;
+    }
+};
+
+class NodeD{
+    public:
+    int data;
+    NodeD* next;
+    NodeD* prev;
+
+    NodeD(int data1, NodeD* next1, NodeD* prev1){
+        data = data1;
+        next = next1;
+        prev = prev1;
+    }
+    NodeD(int data1){
+        data = data1;
+        next = nullptr;
+        prev = nullptr;
     }
 };
 
@@ -43,6 +62,37 @@ NodeL* ConvertArr(vector<int>& arr){
     }
     return head;
 }
+
+
+
+NodeD* convertArrD(vector<int>& arr){
+    int n = arr.size();
+    if(n==0) return nullptr;
+
+    NodeD* dummyNode = new NodeD(-1);
+    NodeD* mover = dummyNode;
+    for(int i=0;i<n;i++){
+        NodeD* temp = new NodeD(arr[i], nullptr, mover);
+        mover->next = temp;
+        mover = temp;
+    }
+    NodeD* head = dummyNode->next;
+    head->prev = nullptr;
+    dummyNode->next = nullptr;
+    delete dummyNode;
+    return head;
+}
+
+void printD(NodeD* head){
+    NodeD* temp = head;
+    while(temp){
+        cout<<temp->data<<" ";
+        temp = temp->next;
+    }
+    cout<<endl;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
 
 // Adding 2 numbers in LL
 // Given L1 and L2 as:
@@ -1326,7 +1376,1139 @@ int LenLoopLL(NodeL* head){
 //--------------------------------------------------------------------------------------------------------------------------------
 
 // Find the middle elem of LL
+// Ex:
+// 1->2->3->4->5
+// res = 1->2->4->5
 
+//Brut
+// We have to reach the node before middle inorder to delet, find (len/2), traverse len/2-1 starting from head
+
+NodeL* middleDelete(NodeL* head){
+    if(!head || !head->next) return nullptr;
+    int len = 0;
+    NodeL* temp = head;
+    while(temp){
+        len++;
+        temp = temp->next;
+    }
+    int mid = len/2 - 1;
+    temp = head;
+    while(mid>0){
+        temp = temp->next;
+        mid--;
+    }
+    NodeL* delNode = temp->next;
+    temp->next = temp->next->next;
+    delete delNode;
+    return head;
+}
+//TC - O(n + n/2), SC - O(1)
+
+// Use tortoise hare algo inorder to delete we need a ptr back of slo i.e middle elem
+NodeL* deleteMiddleElem(NodeL* head){
+    if(!head || !head->next) return nullptr;
+    NodeL* slo = head->next, *fst = head->next->next, *prev = head;
+    while(fst && fst->next){
+        prev = slo;
+        slo = slo->next;
+        fst = fst->next->next;
+    }
+    prev->next = slo->next;
+    delete slo;
+    return head;
+}
+//TC - O(n/2), SC - O(1)
+
+//Inorder to make the slo itself pointing to the node before middle will skip the first movement of slo, skipping 1 movement of slo guarantee it to be node before middle when fst reaches null incase of even or last node incase of odd
+NodeL* deleteMiddleOptHis(NodeL* head){
+    if(!head || !head->next) return nullptr;
+    NodeL* slo = head, *fst = head;
+    fst = fst->next->next;
+    while(fst && fst->next){
+        slo = slo->next;
+        fst = fst->next->next;
+    }
+    NodeL* temp = slo->next;
+    slo->next = slo->next->next;
+    delete temp;
+    return head;
+}
+//TC - O(n/2),SC - O(1)
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// Finding starting node in a loop of a LL
+// Given LL may have loop or not if has return loops starting node otherwise return nullptr
+// Ex:
+/*
+      head
+        |
+        v
+        1 ----> 2 ----> 3 ----> 15 ----> 4 ----> 13 -----
+                                ^                       |
+                                |                       v
+                                9 <---- 8 <---- 7 <---- 6
+*/
+//Brut: hashing 
+int startNodeL(NodeL* head){
+    if(!head || !head->next) return 0;
+
+    map<NodeL*, int> hash;
+    NodeL* temp = head;
+    while(temp){
+        if(hash.find(temp) != hash.end()){
+            return temp->data;
+        }
+        hash[temp]=1;
+        temp = temp->next;
+    }
+    return 0;
+}
+//TC - o(n*2*logn), SC - o(n)
+
+//Using tortoise hare: 
+// When slo and fst meet it means loop exist after that make one of them to start from head and increment both 1 step until they meet, the meeting node is starting node
+NodeL* firstNodeLoopOpt(NodeL* head){
+    if(!head || !head->next) return nullptr;
+    NodeL* slo=head, *fst = head;
+    while(fst && fst->next){
+        slo = slo->next;
+        fst = fst->next->next;
+        if(slo == fst){
+            slo=head;
+            while(slo != fst){
+                slo = slo->next;
+                fst = fst->next;
+            }
+            return slo;
+        }
+    }
+    return nullptr;
+}
+//TC - O(n), SC - o(1)
+
+// Why its correct?
+/*
+      head
+        |
+        v
+        1 ----> 2 ----> 3 ----> 15 ----> 4 ----> 13 -----
+                                ^                       |
+                                |                       v
+                                9 <---- 8 <---- 7 <---- 6
+*/
+// Here consider slo is at 15 i.e it has moved 3 steps = L1
+// - If slo has moved 3 steps then fst will have moved 2*3=6 steps, So fst is at node 6
+
+// -The distance between fst and sloo has of now (when slo-15, fst-6) is d(4)
+// - Each time fst moves towards slo in 2 steps so distance should decrement between fst and slo by 2 i.e d-2, But as slo moves 1 step ahead each time fst moves 2 steps So distance between fst and slo should decrement by 1 step i.e (d-1)
+// - So for each iteration the d decrements by 1 Say when fst=6, slo=15, d=4, when fst=8, slo=4, d=3(4-1)
+// - So d eventually becomes 0 when fst=7, slo=7
+
+// // [image-comments/image-20261102-044426-zzezrr.png]
+// So the loop len = l1+d
+
+// Here inorder to reach the collision point slo would have taken d steps and fst would have taken 2d steps from when fst=6, slo=15
+// So the distance between collided point and node15(start node) is len of loop - d = l1+d-d = l1 
+// And So the distance from collided point to startnode (7-15) is same as  distance from head to start node(1-15)
+
+//------------------------------------------------------------------------------------------------------------------------------
+//Delete all the occurences of a key in doubly Linked List
+
+// Ex; Given head of head of DLL and a key(node data), u need to return head after deleting all keys occurences
+           
+//        → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →
+//  X <── ← │ 10 │ ← ─ ← │  4 │ ← ─ ← │ 10 │ ← ─ ← │ 10 │ ← ─ ← │  6 │ ← ─ ← │ 10 │ ← ──> X
+//          └────┘       └────┘       └────┘       └────┘       └────┘       └────┘
+//           head
+// Res:
+//        → ┌────┐ →   → ┌────┐ →
+//  X <── ← │  4 │ ← ─ ← │  6 │ ← ──> X
+//          └────┘       └────┘
+//           head
+
+
+NodeD* deleteAllOcc(NodeD* head, int key){
+    NodeD* temp = head;
+    bool flag=true;
+    while(temp){
+        if(temp->data == key){
+            NodeD* nx = temp->next;
+            if(temp->prev)
+                temp->prev->next = temp->next;
+            if(temp->next)    
+                temp->next->prev = temp->prev;
+
+            NodeD* deNode = temp;
+            temp = nx;
+            delete deNode;
+        }
+        else{
+            if(flag){
+                head = temp;
+                flag = false;
+            }
+            temp = temp->next;
+        }
+    }
+    return head;
+}
+//TC - o(n), SC - o(1)
+
+//------------------------------------------------------------------------------------------------------------------------------
+
+//Find pairs with given sum in a sorted DLL
+// Ex:
+//        → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →
+//  X <── ← │  1 │ ← ─ ← │  2 │ ← ─ ← │  3 │ ← ─ ← │  4 │ ← ─ ← │  9 │ ← ──> X
+//          └────┘       └────┘       └────┘       └────┘       └────┘
+//           head
+// Sum =5
+// res = {(1,4), (2,3)} return all the pairs
+
+auto twoSumLL(NodeD* head, int target){
+    unordered_map<int, int> hash;
+    vector<pair<int, int>> res;
+    NodeD* temp = head;
+    while(temp){
+        int sum = target - temp->data;
+        if(hash.find(sum) != hash.end()){
+            res.push_back({sum, temp->data});
+        }
+        hash[temp->data] = 1;
+        temp = temp->next;
+    }
+    return res;
+}
+//TC - O(n), SC - o(n)
+
+//Using 2 pointers
+auto twoSumLLOpt(NodeD* head, int target){
+    if(!head) return vector<pair<int, int>>{};
+    NodeD* i=head, *j=head;
+    vector<pair<int, int>> res;
+    while(j->next){
+        j = j->next;
+    }
+    while(i != j->next){  //or i->data < j->data as dll is sorted
+        int x=i->data, y=j->data;
+        if(x+y == target){
+            res.push_back({x,y});
+            i=i->next;
+            j=j->prev;
+        }
+        else if((x+y)<target){
+            i=i->next;
+        }
+        else{
+            j=j->prev;
+        }
+    }
+    return res;
+}
+//TC - O(2*n), SC - O(1)
+
+//------------------------------------------------------------------------------------------------------------------------------
+
+// Remove duplicates from sorted DLL
+// Ex: 
+//        → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →   → ┌────┐ →
+//  X <── ← │  1 │ ← ─ ← │  1 │ ← ─ ← │  1 │ ← ─ ← │  2 │ ← ─ ← │  3 │ ← ─ ← │  3 │ ← ─ ← │  4 │ ← ──> X
+//          └────┘       └────┘       └────┘       └────┘       └────┘       └────┘       └────┘
+//           head
+
+NodeD* removeDup(NodeD* head){
+    if(!head) return head;
+    NodeD* i=head, *j=head->next;
+    while(i && j){
+        if(i->data == j->data){
+            NodeD* delNode = j;
+            i->next = j->next;
+            j->next->prev = i;
+
+            j = i->next;
+            delete delNode;
+        }
+        else{
+            i = i->next;
+            j=j->next;
+        }
+    }
+    return head;
+}
+//TC - O(n), SC - o(1)
+
+//His approach go to a node which has val different then current node and make cur next point to newNode and newNodes prev point to current
+NodeD* removeDupHis(NodeD* head){
+    if(!head) return head;
+    NodeD* temp = head;
+    while(temp){
+        NodeD* newNode = temp->next;
+        while(newNode && newNode->data == temp->data){
+            NodeD* delNode = newNode;
+            newNode = newNode->next;
+            delete delNode;
+        }
+        temp->next = newNode;
+        if(newNode) newNode->prev = temp;
+        temp = temp->next;
+    }
+    return head;
+}
+//TC - O(n), SC - O(1)
+
+//------------------------------------------------------------------------------------------------------------------------------
+
+// Reverse nodes in K-Group
+// Given head of LL u need to return head by reversing every kth no of nodes starting from head
+// Ex: 1->2->3->4->5->6->7->8->9->10, k=3
+// res: 3->2->1->6->5->4->9->8->7->10
+
+NodeL* reverseLLK(NodeL* head, NodeL* start, NodeL* stop){
+    NodeL* cur = start->next;
+    NodeL* endWall = stop->next;
+    NodeL* prev = endWall;
+
+    while(cur != endWall){
+        NodeL* nextcur = cur->next;
+        cur->next = prev;
+        prev = cur;
+        cur = nextcur;
+    }
+
+    start->next = prev;
+    return head;
+}
+
+NodeL* reverseK(NodeL* head, int k){
+    NodeL* start, *dummyNode = new NodeL(-1);
+    dummyNode->next = head;
+    start = dummyNode;
+    while(start){
+        int cnt=k-1;
+        NodeL* stop = start->next;
+        NodeL* endWall = start->next;
+        while(stop && cnt>0){
+            stop = stop->next;
+            cnt--;
+        }
+        
+        if(cnt == 0 && stop)
+            head = reverseLLK(head, start, stop);
+        start = endWall;
+    }
+    return dummyNode->next;
+}
+// Tc - o(2*n), SC - O(1)
+
+//Above is optimal at same time complicated but still feasible
+//His approach:
+// Use prevNode pointing to start of ur previous, use nextNode to point as of stop->next, use temp to traverse , use recursive Reverse LL by providing it prevNode->next as head and after making temp->next = nullptr where temp points as of stop
+// Dry run:
+// Consider: 1->2->3->4->5->6->7->8->9->10, k=3
+// temp = head, prevnode = null, nextnode = null, kNode = null
+
+// ->temp != null
+//     kNode = 3 (temp+k)
+//     if(kNode == null){
+//         break;
+//     }
+//     nextNode = kNode->next = 4
+//     kNode->next = null
+//     reverse: 3->2->1 (temp still points 1)
+//     if(kNode == head)
+//         head = kNode
+//     else 
+//         prevNode->next = kNode
+//     prevNode = temp = 1
+//     if(nextNode) 
+//         temp->next = nextNode = 4
+//     temp = nextNode
+
+//     LL: 3->2->1->4->5->6->7->8->9->10
+// ->temp !=null
+//     kNode = 6
+//     nextNode = 7
+//     kNode->next = null
+//     reverse: 6->5->4 (reverse(temp))
+//     kNode != head
+//         prevNode->next = kNode 
+//     preNode = 4
+//     temp->next = nextNode = 7
+//     temp = nextNode = 7
+
+//     LL: 3->2->1->6->5->4->7->8->9->10
+// ->temp != null
+//     kNode = 9
+//     nextNode = 10
+//     kNode->next = null
+//     reverse: 9->8->7->null
+//     kNode != head
+//         prevNode->next = kNode = 9
+//     prevNode = 7
+//     if(nextNode) temp->next = nextNode = 10
+//     temp = 10
+
+//     LL:3->2->1->6->5->4->9->8->7->10
+// -> temp != null
+//     kNode = null
+//     if(kNode == null){
+//         break;
+//     }
+    
+//     LL:3->2->1->6->5->4->9->8->7->10
+
+
+NodeL* reverseOptRecLL(NodeL* head){
+    if(head->next == nullptr){
+        return head;
+    }
+    NodeL* newHead = reverseOptRecLL(head->next);
+    NodeL* front = head->next;
+    front->next = head;
+    head->next = nullptr;
+
+    return newHead;
+} 
+
+NodeL* findKNode(NodeL* head, int k){
+    NodeL* temp = head;
+    k--;
+
+    while(temp && k>0){
+        temp = temp->next;
+        k--;
+    }
+    return temp;
+}
+
+NodeL* reverseKGrpsHisOpt(NodeL* head, int k){
+    if(!head) return head;
+
+    NodeL* nextNode=nullptr, *prevNode = nullptr, *temp = head, *kNode = nullptr;
+    while(temp){
+        // cout<<temp->data<<endl;
+        kNode = findKNode(temp, k);
+        if(kNode == nullptr) break;
+        nextNode = kNode->next;
+        kNode->next = nullptr;
+
+        reverseOptRecLL(temp);
+        if(temp == head){
+            head = kNode;
+        }
+        else{
+            prevNode->next = kNode;
+        }
+        prevNode = temp;
+        if(nextNode) temp->next = nextNode;
+        temp = nextNode;
+    }
+    return head;
+}
+//TC - O(2*n), SC - O(1)
+
+//--------------------------------------------------------------------------------------------------------------------------------
+//Rotate a LL by k times
+// Ex:
+// 1->2->3->4->5, k=2
+// k=1: 5->1->2->3->4
+// k=2: 4->5->1->2->3
+
+NodeL* rotateLLK(NodeL* head, int k){
+    if(!head) return head;
+    NodeL* tail = head;
+    int len = 1;
+    while(tail->next){
+        tail=tail->next;
+        len++;
+    }
+    int brk = len - (k % len);
+
+    NodeL* brkPoint = head, *prevBrk=head;
+    while(brk){
+        prevBrk = brkPoint;
+        brkPoint = brkPoint->next;
+        brk--;
+    }
+
+    if(brkPoint && brkPoint != head){
+        tail->next = head;
+        head = brkPoint;
+        prevBrk->next = nullptr;
+    }
+
+    return head;
+}
+//TC - O(n + (n-k%n)), SC - O(1)
+
+//------------------------------------------------------------------------------------------------------------------------------
+//Merge 2 sorted LL
+//Ex:
+// 2->4->8->10->x
+// 1->3->3->6->11->14->x
+
+// Res: 1->2->3->3->4->6->8->10->11->14
+
+NodeL* merge2SortedLL(NodeL* head1, NodeL* head2){
+    if(head1 && !head2) return head1;
+    else if(head2 && !head1) return head2;
+    else if(!head1 && !head2) return head1;
+
+    NodeL *t1 = head1, *t2= head2;
+    NodeL* newHead=nullptr, *prevNode = nullptr, *temp = nullptr;
+    while(t1 && t2){
+        if(t1->data < t2->data){
+            temp = new NodeL(t1->data);
+            t1 = t1->next;
+        }
+        else{
+            temp = new NodeL(t2->data);
+            t2 = t2->next;
+        }
+
+        if(!newHead){
+                newHead = temp;
+        }
+        else{
+            prevNode->next = temp;
+        }
+        prevNode = temp;
+        temp->next = nullptr;
+    }
+    while(t1){
+        temp = new NodeL(t1->data);
+        if(!newHead){
+                newHead = temp;
+        }
+        else{
+            prevNode->next = temp;
+        }
+        prevNode = temp;
+        temp->next = nullptr;
+        t1 = t1->next;
+    }
+    while(t2){
+        temp = new NodeL(t2->data);
+        if(!newHead){
+                newHead = temp;
+        }
+        else{
+            prevNode->next = temp;
+        }
+        prevNode = temp;
+        temp->next = nullptr;
+        t2 = t2->next;
+    }
+    return newHead;
+}
+//Tc - o(n+m), SC - O(n+m)
+
+// Without using extra space
+
+NodeL* merge2SortedLLOpt(NodeL* head1, NodeL* head2){
+    if(!head1 && !head2) return head1;
+
+    NodeL* t1 = head1, *t2 = head2;
+    NodeL* dummyNode = new NodeL(-1);
+    NodeL* temp = dummyNode;
+    while(t1 && t2){
+        if(t1->data < t2->data){
+            temp->next = t1;
+            temp = t1;
+            t1 = t1->next;
+        }
+        else{
+            temp->next = t2;
+            temp = t2;
+            t2 = t2->next;
+        }
+    }
+    while(t1){
+        temp->next = t1;
+    }
+    while(t2){
+        temp->next = t2;
+    }
+
+    return dummyNode->next;
+}
+//TC - O(n+m), SC - o(n)
+
+//------------------------------------------------------------------------------------------------------------------------------
+
+// Flatten a LL
+// Here each node can have further child nodes which can be LL on their own
+//Note: every child LL will be sorted
+//Return by converting it into 1 child sorted LL 
+/*
+  head
+ ┌────┐     ┌────┐     ┌────┐     ┌────┐     ┌────┐
+ │  3 │ ──> │  2 │ ──> │  1 │ ──> │  4 │ ──> │  5 │ ──> X
+ └────┘     └────┘     └────┘     └────┘     └────┘
+   │          │          │          │          │
+   ▼          ▼          ▼          ▼          ▼
+   X        ┌────┐     ┌────┐     ┌────┐     ┌────┐
+            │ 10 │     │  7 │     │  9 │     │  6 │
+            └────┘     └────┘     └────┘     └────┘
+              │          │          │          │
+              ▼          ▼          ▼          ▼
+              X        ┌────┐       X        ┌────┐
+                       │ 11 │                │  8 │
+                       └────┘                └────┘
+                         │                     │
+                         ▼                     ▼
+                       ┌────┐                  X
+                       │ 12 │
+                       └────┘
+                         │
+                         ▼
+                         X
+*/
+
+// Res:
+/*
+  head
+ ┌────┐ ──> X
+ │  1 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  2 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  3 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  4 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  5 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  6 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  7 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  8 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │  9 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │ 10 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │ 11 │
+ └────┘
+   │
+   ▼
+ ┌────┐ ──> X
+ │ 12 │
+ └────┘
+   │
+   ▼
+   X
+*/
+
+class NodeF{
+    public:
+    int data;
+    NodeF* next;
+    NodeF* child;
+
+    NodeF(int data1, NodeF* next1, NodeF* child1){
+        data = data1;
+        next = next1;
+        child = child1;
+    }
+
+    NodeF(int data1){
+        data = data1;
+        next = nullptr;
+        child = nullptr;
+    }
+};
+
+NodeF* convertArrF(vector<int>& arr){
+    if(arr.size()==0) return nullptr;
+
+    NodeF* head = new NodeF(arr[0]);
+    NodeF* mover = head;
+    for(int i=1;i<arr.size();i++){
+        NodeF* temp = new NodeF(arr[i]);
+        mover->child = temp;
+        mover = temp;
+    }
+    return head;
+}
+
+void printF(NodeF* head){
+    if(!head) return;
+    NodeF* temp = head;
+    while(temp){
+        NodeF* chlds = temp;
+        while(chlds){
+            cout<<chlds->data<<" ";
+            chlds = chlds->child;
+        }
+        temp = temp->next;
+        cout<<endl;
+    }
+}
+
+NodeF* flattenLL(NodeF* head){
+    if(!head) return head;
+
+    vector<int> res;
+    NodeF* temp = head;
+    while(temp){
+        NodeF* chlds = temp;
+        while(chlds){
+            res.push_back(chlds->data);
+            chlds = chlds->child;
+        }
+        temp = temp->next;
+    }
+
+    sort(res.begin(), res.end());
+    return convertArrF(res);
+}
+//TC - O(n*m + (n*m)log(n*m) + n*m){n-no of nodes, m - no of child for each node}, SC - O(2*(n*m))
+//Here we did not make use of sorted order of child nodes
+
+//Optimal: it uses the fact of sorted order of child and makes in place link changes and not creates a new LL for output
+
+NodeF* mergeF(NodeF* head1, NodeF* head2){
+    NodeF* t1 = head1;
+    NodeF* t2 = head2;
+
+    NodeF* dummyNode = new NodeF(-1);
+    NodeF* temp = dummyNode;
+    while(t1 && t2){
+        if(t1->data < t2->data){
+            temp->child = t1;
+            temp = t1;
+            t1 = t1->child;
+        }
+        else{
+            temp->child = t2;
+            temp = t2;
+            t2 = t2->child;
+        }
+        temp->next = nullptr;
+    }
+    if(t1){
+        temp->child = t1;
+    }
+    else if(t2){
+        temp->child = t2;
+    }
+    return dummyNode->child;
+}
+
+NodeF* flattenLLOpt(NodeF* head){
+    if(!head || !head->next){
+        return head;
+    }
+    NodeF* newHead = flattenLLOpt(head->next);
+    return mergeF(head, newHead);
+}
+//TC - O(n * 2*m), SC - o(1)
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Merge K sorted List:
+// Ex:
+// 1->4->6->x
+// 1->5->x
+// 1->1->3->7->x
+// 8->x
+// res: 1->1->1->3->4->5->6->7->8->x
+
+
+//Brut: Store all k LLs data in a arr and then sort it and convert to LL and return 
+NodeL* mergeKLL(vector<NodeL*>& arr){
+    if(arr.size() == 0) return nullptr;
+    vector<int> res;
+
+    for(int i=0;i<arr.size();i++){
+        NodeL* temp = arr[i];
+        while(temp){
+            res.push_back(temp->data);
+            temp = temp->next;
+        }
+    }
+
+    sort(res.begin(), res.end());
+    return ConvertArr(res);
+}
+//TC - O(k*n + k*nlog(k*n) + k*n) {where k is no of list to merge and n-no of elems in each LL considered to be same accross all}, SC - O(2*k*n)
+
+//Better: Pass each of 2 LL to merge using 2 pointers
+
+NodeL* merge(NodeL* head1, NodeL* head2){
+    if(!head1 && !head2) return head1;
+
+    NodeL* t1=head1, *t2=head2;
+    NodeL* dummyNode = new NodeL(-1);
+    NodeL* temp = dummyNode;
+    while(t1 && t2){
+        if(t1->data < t2->data){
+            temp->next = t1;
+            temp = t1;
+            t1 = t1->next;
+        }
+        else{
+            temp->next = t2;
+            temp = t2;
+            t2 = t2->next;
+        }
+    }
+    if(t1){
+        temp->next = t1;
+    }
+    else if(t2){
+        temp->next = t2;
+    }
+    NodeL* head = dummyNode->next;
+    delete dummyNode;
+    return head;
+}
+
+NodeL* mergeKLLBet(vector<NodeL*>& arr){
+    if(arr.size()==0) return nullptr;
+
+    NodeL* l1 = arr[0];
+    for(int i=1;i<arr.size();i++){
+        NodeL* temp = merge(l1, arr[i]);
+        l1 = temp;
+    }
+    return l1;
+}
+//TC - 
+// Consider 4 LL with sizes as follows:
+// l1 - n1
+// l2 - n2
+// l3 - n3
+// l4 - n4
+
+// For i=1, TC - O(n1+n2)
+//     i=2, TC - O(n1+n2+n3)
+//     i=3, TC - O(n1+n2+n3+n4)
+// Total - O((n1+n2) + (n1+n2+n3) + (n1+n2+n3+n4))
+// considering n1=n2=n3=n4
+// Total - O(2*n + 3*n + 4*n) - O(2*n + 3*n + ... + k*n)
+//                            - O(n * (2 + 3 + ... + k))
+//                            - O(n * (k*(k+1)/2)) ~ O(n^3) if (k=n)
+// SC - O(1)
+
+//Opt: Using Priority queue, using concept of minHeap
+// Start pushing only value heads of all k LL to pq along with their Node
+// Each time pop the pq and attach it to dummyNode and then push the poped Nodes next Node to pq 
+// Repeat above until pq is empty
+
+NodeL* mergeKLLOpt(vector<NodeL*> arr){
+    if(arr.size()==0) return nullptr;
+
+    priority_queue<pair<int, NodeL*>, vector<pair<int, NodeL*>>, greater<pair<int, NodeL*>>> pq;
+    for(int i=0;i<arr.size();i++){
+        pq.push({arr[i]->data, arr[i]});
+    }
+    
+    NodeL* dummyNode = new NodeL(-1);
+    NodeL* temp = dummyNode;
+    while(!pq.empty()){
+        auto tp = pq.top();
+        pq.pop();
+        temp->next = tp.second;
+        temp = temp->next;
+        if(tp.second->next) pq.push({tp.second->next->data, tp.second->next});
+    }
+    NodeL* head = dummyNode->next;
+    delete dummyNode;
+    return head;
+}
+//TC - O(klogk + k*n*3*logk), SC - O(k)
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+//Sort a LL
+// Brut: Put it to arr, sort and put data back
+
+NodeL* SortLL(NodeL* head){
+    if(!head && !head->next) return head;
+    vector<int> res;
+    NodeL* temp=head;
+
+    while(temp){
+        res.push_back(temp->data);
+        temp = temp->next;
+    }
+
+    temp = head;
+    for(int i=0;i<res.size();i++){
+        temp->data = res[i];
+        temp = temp->next;
+    }
+    return head;
+}
+//TC - O(n + n), SC - O(n)
+
+//Opt: Using merge sort: Find middle elem using Tortoise Hare and for each half recurse until left with 1 elem and then merge left and right LL using merge function(uses 2 pointers)
+//Note: Finding the misddle is slightly differs: why? As if LL even len: then get the first middle not second , if odd then only 1 middle no issue:
+// To make it return 1st middle if LL is even: Consider: 
+// 1 2 3 4 
+// initially: slo->1, fst->1
+// Loop until fst->next = nullptr (if odd) or fst = nullptr(if even)
+// -> slo->2, fst->3
+// -> slo->3, fst->null : But slo is 2nd middle not 1st
+
+// Change:
+// Initially
+// slo->1, fst->2
+// -> slo->2, fst->4
+// ->fst->next = null So: middle = slo = 3 (1st middle)
+
+// Now merge:
+// - [3 4 2 1 5]
+// - [3 4]     [2 1 5]
+// - [3] [4]   [2 1]   [5]
+//             [2] [1]
+
+NodeL* MiddleLLTH(NodeL* head){
+    if(!head || !head->next) return head;
+
+    NodeL* slo=head, *fst=head->next;
+
+    while(!fst->next && !fst){
+        fst = fst->next->next;
+        slo = slo->next;
+    }
+    return slo;
+}
+
+NodeL* SortLLOpt(NodeL* head){
+    if(!head || !head->next) return head;
+
+    NodeL* middle = MiddleLLTH(head);
+    NodeL* left = head, *right = middle->next;
+    middle->next = nullptr; 
+    left = SortLLOpt(left);
+    right = SortLLOpt(right);
+
+    return merge(left, right);
+}
+//TC - O((n+(n/2)) * logn), SC - O(logn) {for recursive stack space}
+
+//--------------------------------------------------------------------------------------------------------------------------
+
+//Cloning a LL with next and random pointers
+
+// Consider a LL with next ptr: pointing to next elem and random ptr: pointing to random nodes of the LL
+
+//  ┌───┬───┐       ┌────┬───┐       ┌────┬───┐       ┌────┬───┐       ┌────┬───┐
+//  │ 7 │ ──┼─────> │ 13 │ ──┼─────> │ 11 │ ──┼─────> │ 10 │ ──┼─────> │  1 │ ──┼───> X
+//  └───┴───┘       └────┴───┘       └────┴───┘       └────┴───┘       └────┴───┘
+//    │               │               │               │               │
+//    │ [random]      │ [random]      │ [random]      │ [random]      │ [random]
+//    ▼               ▼               ▼               ▼               ▼
+//    X               Node(7)         Node(1)         Node(11)        Node(7)
+
+// [image-comments/image-20261106-132152-hcc204.png]
+
+// U just need to create another LL with exactly same random ptrs and next ptrs 
+// The problem is: U cannot do it in 1 pass: cuz if a node's random ptr can point to a further away node in LL So u cannnot point random ptr to a node thats not created yet while traversing sequentially
+
+// So need to store the details of node in input LL and created node beforehand connecting random and next ptr sequentially, So use hash Map
+
+class NodeR{
+    public:
+    int data;
+    NodeR* next;
+    NodeR* random;
+
+    NodeR(int data1){
+        data = data1;
+        next = nullptr;
+        random = nullptr;
+    }
+
+    NodeR(int data1, NodeR* next1, NodeR* rand1){
+        data = data1;
+        next = next1;
+        random = rand1;
+    }
+};
+
+NodeR* convertArrR(vector<int>& arr){
+    if(arr.size() == 0) return nullptr;
+
+    NodeR* head = new NodeR(arr[0]);
+    NodeR* temp = head;
+    for(int i=1;i<arr.size();i++){
+        NodeR* newNode = new NodeR(arr[i]);
+        temp->next = newNode;
+        temp = newNode;
+    }   
+    temp = head;
+    map<int, NodeR*> mpp;
+    while(temp){
+        mpp[temp->data] = temp;
+        temp = temp->next;
+    }
+    temp = head->next;
+    temp->random = mpp[7];
+
+    temp = mpp[11];
+    temp->random = mpp[1];
+
+    temp = mpp[10];
+    temp->random = mpp[11];
+
+    temp = mpp[1];
+    temp->random = mpp[7];
+
+    return head;
+}
+
+void printR(NodeR* head){
+    NodeR* temp = head;
+    while(temp){
+        cout<<temp->data<<" ";
+        temp = temp->next;
+    }
+    temp = head;
+    cout<<endl;
+    while(temp){
+        if(temp->random) cout<<temp->data<<" random points to: "<<temp->random->data<<endl;
+        else cout<<temp->data<<" random points to: nullptr"<<endl;
+        temp = temp->next;
+    }
+    cout<<"======================================="<<endl;
+}
+
+
+NodeR* copyRand(NodeR* head){
+    if(!head || !head->next) return head;
+
+    unordered_map<NodeR*, NodeR*> hash;
+    NodeR* temp = head;
+    while(temp){
+        NodeR* newNode = new NodeR(temp->data);
+        hash[temp] = newNode;
+        temp = temp->next;
+    }
+    temp = head;
+    NodeR* newHead = hash[head];
+    NodeR* mover = newHead;
+    while(temp){
+        mover->next = hash[temp->next];
+        mover->random = hash[temp->random];
+        temp = temp->next;
+        mover = mover->next;
+    }
+    return newHead;
+}
+//TC - O(2*n*1 {worst - O(n^2)}), SC - O(n) + O(n)
+
+//Optimal: Without using hash map
+NodeR* copyRandOpt(NodeR* head){
+    if(!head) return head;
+
+    NodeR* temp = head;
+    while(temp){
+        NodeR* newNode = new NodeR(temp->data);
+        newNode->next = temp->next;
+        temp->next = newNode;
+
+        temp = newNode->next;
+    }
+    temp = head;
+    while(temp){
+        if(temp->random) 
+            temp->next->random = temp->random->next;
+        else 
+            temp->next->random = nullptr;
+
+        temp = temp->next->next;
+    }
+
+    NodeR* newHead = head->next;
+    NodeR* mover = head;
+    while(mover){
+        NodeR *clone = mover->next;
+
+        mover->next = clone->next;
+
+        if(clone->next) 
+            clone->next = clone->next->next;
+
+        mover = mover->next;
+    }
+    return newHead;
+}
+//TC - O(3*n), SC - O(n)
+
+//-----------------------------------------------------------------------------------------------------------------------------
+
+//Design Browser History:
+// with visit, back(n), forward(n)
+
+//Use DLL
+class Browser{
+    public:
+    NodeD* current;
+
+    Browser(){
+        NodeD* newNode = new NodeD(0);
+        current = newNode;
+    }
+
+    void visit(int n){
+        NodeD* newNode = new NodeD(n);
+        current->next = newNode;
+        current = newNode;
+    }
+
+    int back(int t){
+        while(current->prev && t){
+            current = current->prev;
+            t--;
+        }
+        return current->data;
+    }
+
+    int forward(int t){
+        while(current->next && t){
+            current = current->next;
+            t--;
+        }
+        return current->data;
+    }
+};
+
+//----------------------------------------------------------------------------------------------------------------
 
 int main(){
     // vector<int> arr1 = {2,4,6};
@@ -1385,21 +2567,66 @@ int main(){
 
     //==================================================
 
-    // vector<int> arr = {1,2,3,4,5,6};
+    // vector<int> arr = {1,2,3,4,5};
     // NodeL* head = ConvertArr(arr);
-    // cout<<middleElemOptHis(head);
+    // head = deleteMiddleOptHis(head);
+    // print(head);
 
     //=================================================
 
-    vector<int> arr = {1,2,3,4,5,6,7,8,9};
-    NodeL* head = ConvertArr(arr);
-    NodeL* temp = head, *con;
-    while(temp->next != nullptr){
-        if(temp->data == 3) con = temp;
-        temp = temp->next;
-    }
-    temp->next = con;
-    cout<<LenLoopLL(head);
+    // vector<int> arr = {1,2,3,15,4,13,6,7,8,9};
+    // NodeL* head = ConvertArr(arr);
+    // NodeL* temp = head, *con;
+    // while(temp->next != nullptr){
+    //     if(temp->data == 15) con = temp;
+    //     temp = temp->next;
+    // }
+    // temp->next = con;
+    // cout<<firstNodeLoopOpt(head)->data;
+
+    // ================================================
+
+    // vector<int> arr1 = {2,4,8,10};
+    // vector<int> arr2 = {1,3,3,6,11,14};
+    // NodeL* head1 = ConvertArr(arr1);
+    // NodeL* head2 = ConvertArr(arr2);
+
+    // NodeL* head = merge2SortedLLOpt(head1, head2);
+    // print(head);
+
+    //================================================
+
+    // vector<vector<int>> arr = {{2, 10}, {1,7,11,12}, {4,9}, {5,6,8}};
+    // NodeF* head = new NodeF(3);
+    // NodeF* mover = head;
+
+    // for(int i=0;i<4;i++){
+    //     NodeF* newNode = convertArrF(arr[i]);
+    //     mover->next = newNode;
+    //     mover = newNode;
+    // }
+    // printF(head);
+
+    // head = flattenLLOpt(head);
+    // cout<<endl;
+    // printF(head);
+
+    //===============================================
+
+    // vector<vector<int>> arr = {{2,4,6}, {1,5}, {1,1,3,7}, {8}};
+    // vector<NodeL*> Larr;
+    // for(int i=0;i<arr.size();i++){
+    //     Larr.push_back(ConvertArr(arr[i]));
+    // }
+    // NodeL* head = mergeKLLOpt(Larr);
+    // print(head);
+
+    vector<int> arr = {7, 13, 11, 10, 1};
+    NodeR* head = convertArrR(arr);
+    printR(head);
+
+    head = copyRandOpt(head);
+    printR(head);
 
 
     return 0;
